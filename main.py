@@ -1,14 +1,10 @@
 import tkinter as tk
-from tkinter.constants import VERTICAL
-
 import pygame
-import keyboard
-
 import time
 from functools import partial
 import threading
 
-from pyautogui import position
+# pip freeze > requirements.txt
 
 
 
