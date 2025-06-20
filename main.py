@@ -407,7 +407,8 @@ def on_release(event):
     A.musictime  = 0
     A.new_pos = 0
     A.music_time_save = 0
-    seek(A.b)
+    if A.is_playing == True:
+        seek(A.b)
     # Можно получить текущие значения или выполнить другие действия
 
 
