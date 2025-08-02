@@ -84,13 +84,13 @@ class A:
     is_playing = False
     update_thread = None
     paused = False
+
     music_length = 0
     musictime = 0
     new_pos = 0
     music_time_save = 0
-
-
-
+    scale = False
+    file_name = None
 
 
 
@@ -112,29 +112,39 @@ def update_labels():
 
     time_label.config(text=f"{format_time(time)} / {format_time(A.music_length)}")
     a = ((A.current_time) * 100) / A.music_length
-    scale.set(a)
+
+    if A.scale == False:
+        scale.set(a)
 
 
 
 
 
 
-# старт воспроизведения
+# старт воспроизведения после паузы
 def start_playback():
     seek(A.current_time)
     A.is_playing = True
 
 
 
-# старт воспроизведения
+
+
+
+# старт воспроизведения с нуля новой дорожки
 def start_playback1(arg):
+    A.file_name = arg
     A.music_length = pygame.mixer.Sound(f"audio/{arg}").get_length()
     pygame.mixer.music.load(f"audio/{arg}")
     pygame.mixer.music.play(start=0)
     A.music_time_save = 0
     A.new_pos = 0
+    A.current_time = 0
     A.is_playing = True
     A.paused = True
+
+
+
 
 
 
@@ -143,20 +153,27 @@ def start_playback1(arg):
     def update_time():
         while True:
             time.sleep(0.01)
-            musictime = pygame.mixer.music.get_pos() / 1000
+
+            if A.scale == True:
+                musictime = 0
+            else:
+                musictime = pygame.mixer.music.get_pos() / 1000
+
             if musictime >= 0:
                 A.musictime = musictime
             else:
                 A.musictime = 0
 
 
-            if A.musictime>0:
-                A.current_time = A.musictime + A.new_pos + A.music_time_save
-            # print(A.current_time, A.musictime, A.new_pos)
 
-            # if A.current_time >= A.music_length:
-            #     A.current_time = A.music_length
-            #     break
+            if A.musictime>=0 and pygame.mixer.music.get_busy():
+                A.current_time = A.musictime + A.new_pos + A.music_time_save
+
+
+            # повтор музыки
+            # if not pygame.mixer.music.get_busy() and A.file_name!=None:
+            #     start_playback1(A.file_name)
+
 
             update_labels()
 
@@ -183,12 +200,13 @@ def stop_playback():
 
 
 
+
+
+
 # запускает перемотку по position
 def seek(position):
     if 0 <= position <= A.music_length:
-        A.current_time = position
-        pygame.mixer.music.play(start=A.current_time)
-
+        pygame.mixer.music.play(start=position)
 
 
 
@@ -207,7 +225,13 @@ def move_forward(event):
         A.new_pos = A.music_length
     else:
         A.new_pos = new_pos
-    seek(A.new_pos)
+
+    if A.is_playing == True:
+        seek(A.new_pos)
+    else:
+        A.music_time_save = 0
+
+        A.current_time = A.musictime + A.new_pos
     update_labels()
 
 
@@ -224,7 +248,12 @@ def move_backward(event):
         A.new_pos = 0
     else:
         A.new_pos = new_pos
-    seek(A.new_pos)
+
+    if A.is_playing == True:
+        seek(A.new_pos)
+    else:
+        A.music_time_save = 0
+        A.current_time = A.musictime + A.new_pos
     update_labels()
 
 
@@ -237,7 +266,7 @@ def move_backward(event):
 
 
 
-
+# Кнопка при нажатии на пробел меняет местами значение A.is_playing на True или False
 def pause_resume(event=None):
     if A.paused == True:
         if A.is_playing:
@@ -249,14 +278,14 @@ def pause_resume(event=None):
 
 
 
-
-
 # Кнопка плавное затухание звука
 def sound_down():
     for i in range(100, 9, -1):
         pygame.mixer.music.set_volume(i/100)
         scale1.set(i)
         time.sleep(0.009)
+
+
 
 
 
@@ -336,15 +365,13 @@ sound_up_b.place(x=500, y=550)
 
 # функция изменения звука роликом мыши
 def change_volume(event):
-    # print(event)
-    # event.delta > 0 при прокрутке вверх, < 0 при вниз
     if event.delta > 0:
         A.volume = min(A.volume + 0.05, 1.0)
     else:
         A.volume = max(A.volume - 0.05, 0.0)
     pygame.mixer.music.set_volume(A.volume)
     scale1.set(A.volume*100)
-    # print(f"Громкость: {A.volume:.2f}")
+
 
 
 
@@ -360,17 +387,36 @@ def change_volume1(event):
 
 
 
+
+
 # функция промотки ползунком
 def change_volume2(event):
-    pass
-    # print(event, A.music_length, A.current_time)
-    # b = (int(event)*A.music_length)/100
-    #
-    # print(A.current_time, b)
-    # a = (A.current_time * 100) / A.music_length
-    # print(event, A.current_time, int(a))
+    if A.scale == True:
+        A.new_pos = (int(event)*A.music_length)/100
 
 
+
+
+
+
+
+
+
+# Функция отрабатывает при нажатии ползунка, блокирует на время нажатия изменение ползунка
+def on_press(event):
+    # print("Ползунок нажат")
+    A.scale = True
+
+
+
+
+# Функция отрабатывает при отпускании ползунка
+def on_release(event):
+    # print("Ползунок отпущен")
+    A.scale = False
+    A.music_time_save = 0
+    if A.is_playing == True:
+        seek(A.new_pos)
 
 
 
@@ -379,10 +425,16 @@ def change_volume2(event):
 
 # Ползунок аудиодорожка
 scale = tk.Scale(window, from_=0, to=100, orient=tk.HORIZONTAL, command=change_volume2, width=10, length=480)
-scale.set(0)  # Начальное значение
+scale.set(0)  # Начальное значение аудиодорожки
 scale.pack(pady=10)
 scale.place(x=50, y=650)
 
+
+
+
+# Привязываем события к ползунку
+scale.bind("<ButtonPress-1>", on_press)
+scale.bind("<ButtonRelease-1>", on_release)
 
 
 
@@ -400,11 +452,13 @@ scale1.place(x=450, y=550)
 
 
 
-
 # <Связываем стрелки с функциями перемотки>
 window.bind('<Left>', move_backward)
 window.bind('<Right>', move_forward)
 window.bind('<space>', pause_resume)
+
+
+
 
 # Обработка события прокрутки мыши для всего окна
 window.bind("<MouseWheel>", change_volume)
